@@ -1,0 +1,81 @@
+City[] cities;
+SearchAlgorithm algorithm;
+static final SearchAlgo algo = SearchAlgo.ASTAR;
+static final DistanceHeuristic heur = DistanceHeuristic.he;
+
+// Number of columns and rows in the grid
+int mapSize = 100;
+int numLetters = 26;
+
+void setup() {
+  size(1500, 1500);
+  cities = new City[numLetters];
+
+  for (int i = 0; i < numLetters; i++) {
+    int rx = (int)random(mapSize);
+    int ry = (int)random(mapSize);
+    float suffix = width/mapSize;
+    char letter = 'A';
+    cities[i] = new City(rx*suffix, ry*suffix, suffix, suffix, Character.toString(((char)(letter + i))));
+  }
+
+  for(City city : cities) {
+    Neighbor[] closest = getClosestCitiesTo(city, 5);
+    knuthShuffle(closest);
+    int rand = (int)random(1,5);
+    for(int i = 0; i < rand; i++) {
+      city.connectWith(closest[i]);
+    }
+  }
+
+  for(City city : cities) {
+    // println("For city " + city.getLetter());
+    // for(Object neighbor : city.getNeighbors()) {
+    //   Neighbor n = neighbor;
+    //   n.print();
+    // }
+    city.display(255,255);
+  }
+  //TODO: choose start and end city/state
+  int startCity = (int)random(numLetters);
+  int endCity = (int)random(numLetters);
+  City startNode = cities[startCity];
+  City endNode = cities[endCity];
+
+  startNode.display(200,200);
+  endNode.display(200,200);
+  startNode.display(100,-1);
+  endNode.display(-1,100);
+  println("Starting Node: " + startNode.letter);
+
+  frameRate(2);
+  switch(algo) {
+    case BFS:
+      algorithm = new BreadthFirstSearch(startNode, endNode);
+      break;
+    case DFS:
+      algorithm = new DepthFirstSearch(startNode, endNode);
+      break;
+    case IDS:
+      algorithm = new IterativeDeepeningSearch(startNode, endNode);
+      break;
+    case GBFS:
+      algorithm = new GreedyBestFirstSearch(startNode, endNode, heur);
+      break;
+    case ASTAR:
+      algorithm = new AStar(startNode, endNode, heur);
+      break;
+  }
+}
+
+boolean stopSearch = false;
+void draw() {
+  if(!stopSearch) {
+    stopSearch = algorithm.compute();
+    algorithm.display();
+    for(Neighbor n : algorithm.getPath()) {
+      print(n.getCity().getLetter());
+      print("->");
+    }
+  }
+}

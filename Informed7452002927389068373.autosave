@@ -1,0 +1,137 @@
+import java.util.*;
+public class GBFSComparator implements Comparator<Neighbor> {
+  DistanceHeuristic h;
+  City goal;
+
+  public GBFSComparator(DistanceHeuristic h, City goal) {
+    this.h = h;
+    this.goal = goal;
+  }
+
+  @Override
+  public int compare(Neighbor x, Neighbor y) {
+    return (int)(x.getDistance(goal,h) - y.getDistance(goal,h));
+  }
+}
+
+public class AStarComparator implements Comparator<Neighbor> {
+  DistanceHeuristic h;
+  City goal;
+
+  public AStarComparator(DistanceHeuristic h, City goal) {
+    this.h = h;
+    this.goal = goal;
+  }
+
+  @Override
+  public int compare(Neighbor x, Neighbor y) {
+    double xdist = x.getDistance(null,h) + x.getDistance(goal,h);
+    double ydist = y.getDistance(null,h) + y.getDistance(goal,h);
+
+    return (int)(xdist - ydist);
+  }
+}
+
+abstract class BestFirstSearch extends SearchClass {
+  Neighbor current;
+  PriorityQueue<Neighbor> queue;
+
+  public BestFirstSearch(City start, City goal, Comparator<Neighbor> comp) {
+    super(start,goal);
+    Comparator<Neighbor> comparator = comp;
+    queue = new PriorityQueue<Neighbor>(numLetters, comparator);
+    queue.add(new Neighbor(startNode,0));
+  }
+
+  public Neighbor getFrontier() {
+    return current;
+  }
+
+  boolean compute(){
+    if(!queue.isEmpty()){
+      current = ((PriorityQueue<Neighbor>)queue).poll();
+      City currentCity = current.getCity();
+      if(currentCity.equals(goalNode)) {
+        visitedNodes.add(currentCity);
+        println("Goal Node Found!");
+        Stack<Neighbor> s = new Stack<Neighbor>();
+        getPathFrom(current, s);
+        for(int i = s.size(); i > 0; i--) {
+          path.add(s.pop());
+        }
+        return true;
+      }
+      else{
+        for(Neighbor n : currentCity.getNeighbors()) {
+          if(alreadyVisited(n, queue) || alreadyVisited(n.getCity(), visitedNodes))
+            continue;
+          n.parent = current;
+          queue.add(n);
+        }
+      }
+      visitedNodes.add(currentCity);
+    }
+    else {
+      println(visitedNodes);
+      return true;
+    }
+    return false;
+  }
+}
+
+class GreedyBestFirstSearch extends BestFirstSearch {
+  public GreedyBestFirstSearch(City start, City goal, DistanceHeuristic h) {
+    super(start, goal, new GBFSComparator(h, goal));
+  }
+}
+
+class AStar extends BestFirstSearch {
+  public AStar(City start, City goal, DistanceHeuristic h) {
+    super(start, goal, new AStarComparator(h ,goal));
+  }
+}
+
+class AStarBiDirectional extends SearchClass {
+  Stack<Neighbor> queue;
+  LinkedList<Neighbor> endQueue;
+  AStar fromStart;
+  AStar fromEnd;
+
+  public AStarBiDirectional(City start, City goal, DistanceHeuristic h) {
+    super(start,goal);
+    fromStart = new AStar(start, goal, h);
+    fromEnd = new AStar(goal, start, h);
+    endQueue = new LinkedList<Neighbor>();
+    queue = new Stack<Neighbor>();
+  }
+
+  boolean compute() {
+    fromStart.compute();
+    Neighbor frontier = fromStart.getFrontier();
+    if(alreadyVisited(frontier,fromEnd.queue)) {
+      fromStart.getPathFrom(frontier, queue);
+      for(int i = queue.size(); i > 0; i--) {
+        path.add(queue.pop());
+      }
+      fromEnd.getPathFrom(frontier, endQueue);
+      for(int i = endQueue.size(); i > 1; i--) {
+        path.add(endQueue.poll());
+      }
+      return true;
+    }
+    fromEnd.compute();
+    frontier = fromEnd.getFrontier();
+    if(alreadyVisited(frontier,fromStart.queue)){
+      fromStart.getPathFrom(frontier, queue);
+      for(int i = queue.size(); i > 0; i--) {
+        path.add(queue.pop());
+      }
+      fromEnd.getPathFrom(frontier, endQueue);
+      for(int i = endQueue.size(); i > 1; i--) {
+        path.add(endQueue.poll());
+      }
+      return true;
+    }
+    return false;
+  }
+}

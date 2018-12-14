@@ -1,0 +1,188 @@
+class BreadthFirstSearch extends SearchClass {
+  LinkedList<Neighbor> queue;
+  BreadthFirstSearch(City start, City goal){
+    super(start,goal);
+    queue = new LinkedList<Neighbor>();
+    queue.add(new Neighbor(startNode,0));
+  }
+
+    boolean compute(){
+        if(!queue.isEmpty()){
+            current = queue.remove();
+            City currentCity = current.getCity();
+            visitedNodes.add(currentCity);
+            if(currentCity.equals(goalNode)) {
+              return goalFound();
+            }
+            else{
+              for(Neighbor n : currentCity.getNeighbors()) {
+                if(alreadyVisited(n, queue) || alreadyVisited(n.getCity(), visitedNodes))
+                  continue;
+                n.depth = current.depth + 1;
+                n.parent = current;
+                queue.add(n);
+              }
+            }
+        }
+        else {
+          println(visitedNodes);
+          return true;
+        }
+        return false;
+    }
+}
+
+class BFSBiDirectional extends SearchClass {
+  Stack<Neighbor> queue;
+  LinkedList<Neighbor> endQueue;
+  BreadthFirstSearch fromStart;
+  BreadthFirstSearch fromEnd;
+
+  public BFSBiDirectional(City start, City goal) {
+    super(start,goal);
+    fromStart = new BreadthFirstSearch(start, goal);
+    fromEnd = new BreadthFirstSearch(goal, start);
+    endQueue = new LinkedList<Neighbor>();
+    queue = new Stack<Neighbor>();
+  }
+
+  boolean compute() {
+    if(fromStart.compute()) {
+      path = fromStart.path;
+      return true;
+    }
+    Neighbor frontier = fromStart.getFrontier();
+    if(alreadyVisited(frontier.getCity(),fromEnd.visitedNodes)) {
+      fromStart.getPathFrom(frontier, queue);
+      for(int i = queue.size(); i > 0; i--) {
+        path.add(queue.pop());
+      }
+      fromEnd.getPathFrom(frontier, endQueue);
+      for(int i = endQueue.size(); i > 1; i--) {
+        path.add(endQueue.poll());
+      }
+      return true;
+    }
+    
+    if(fromEnd.compute()) {
+      path = fromEnd.path;
+      return true;
+    }
+    frontier = fromEnd.getFrontier();
+    if(alreadyVisited(frontier.getCity(),fromStart.visitedNodes)){
+      fromStart.getPathFrom(frontier, queue);
+      for(int i = queue.size(); i > 1; i--) {
+        path.add(queue.pop());
+      }
+      fromEnd.getPathFrom(frontier, endQueue);
+      for(int i = endQueue.size(); i > 0; i--) {
+        path.add(endQueue.poll());
+      }
+      return true;
+    }
+    return false;
+  }
+
+  @Override
+  void display() {
+    fromStart.display();
+    fromEnd.display();
+  }
+}
+
+class DepthFirstSearch extends SearchClass {
+  Stack<Neighbor> queue;
+  public DepthFirstSearch(City start, City goal) {
+      super(start, goal);
+      queue = new Stack<Neighbor>();
+      queue.add(new Neighbor(startNode,0));
+  }
+
+  public boolean compute() {
+    if(!queue.isEmpty()) {
+      current = queue.pop();
+      City currentCity = current.getCity();
+      visitedNodes.add(currentCity);
+      if(current.equals(goalNode)){
+        return goalFound();
+      }
+      else {
+        for(Neighbor n : currentCity.getNeighbors()) {
+          if(alreadyVisited(n, queue) || alreadyVisited(n.getCity(), visitedNodes))
+            continue;
+          n.depth = current.depth + 1;
+          n.parent = current;
+          queue.add(n);
+        }
+      }
+    }
+    else {
+      println(visitedNodes);
+      return true;
+    }
+    return false;
+  }
+}
+
+class DepthLimitedSearch extends SearchClass {
+  int limit = 0;
+  Stack<Neighbor> queue;
+
+  public DepthLimitedSearch(City start, City goal) {
+    super(start, goal);
+    queue = new Stack<Neighbor>();
+    queue.add(new Neighbor(startNode,0,0, null));
+  }
+
+  public boolean compute() {
+    if(!queue.isEmpty()) {
+        current = queue.pop();
+        City currentCity = current.getCity();
+        visitedNodes.add(currentCity);
+        if (currentCity.equals(goalNode)) {
+          return goalFound();
+        } else {
+          if(current.depth < limit) {
+            for(Neighbor n : currentCity.getNeighbors()) {
+              if(alreadyVisited(n, queue) || alreadyVisited(n.getCity(), visitedNodes))
+                continue;
+              n.depth = current.depth + 1;
+              n.parent = current;
+              queue.add(n);
+            }
+          }
+        }
+    } else {
+      println("Goal Node not found within depth limit");
+      queue.add(new Neighbor(startNode,0,0, null));
+      visitedNodes = new ArrayList<City>();
+      return true;
+    }
+    return false;
+  }
+}
+
+class IterativeDeepeningSearch extends SearchClass {
+  int limit = 0;
+  DepthLimitedSearch dls;
+
+  public IterativeDeepeningSearch(City start, City goal) {
+    super(start,goal);
+    dls = new DepthLimitedSearch(start,goal);
+  }
+
+  public boolean compute() {
+    dls.limit = limit;
+    if(dls.compute()) {
+      limit++;
+      success = dls.success;
+      return success;
+    }
+    return false;
+  }
+
+  @Override
+  void display() {
+    dls.display();
+  }
+}

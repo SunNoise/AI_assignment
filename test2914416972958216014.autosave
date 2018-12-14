@@ -1,0 +1,342 @@
+interface Cell{
+  void display(int c, int d);
+  void connectWith(Neighbor neighbor);
+}
+
+abstract class CellLocation implements Cell {
+  float x, y;   // x,y location
+  float w, h;   // width and height
+
+  CellLocation(float x, float y, float w, float h) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+}
+
+import java.util.*;
+class City extends CellLocation {
+
+  // A cell object knows about its location in the grid as well as its size with the variables x, y, w, h.
+  private String letter;  // angle for oscillating brightness
+  private float centerX, centerY;
+  private ArrayList<Neighbor> neighbors;
+
+  // Cell Constructor
+  City(float x, float y, float w, float h, String letter) {
+    super(x,y,w,h);
+    this.letter = letter;
+    centerX = x+(w/2);
+    centerY = y+(h/2);
+    neighbors = new ArrayList<Neighbor>();
+  }
+
+  float getCenterX() {
+    return centerX;
+  }
+
+  float getCenterY() {
+    return centerY;
+  }
+
+  String getLetter() {
+    return letter;
+  }
+
+  void display(int c, int d) {
+    stroke(255);
+    strokeWeight(1);
+    if(c != -1) {
+      fill(c);
+      rect(x,y,w/2,h);
+    }
+    if(d != -1) {
+      fill(d);
+      rect(x+w/2,y,w/2,h);
+    }
+    fill(0);
+    textSize(w/1.25);
+    textAlign(CENTER,TOP);
+    text(letter, x, y, w, h);
+  }
+
+  void connectWith(Neighbor neighbor) {
+    City city = neighbor.getCity();
+    if(isConnectedWith(city)) {
+      return;
+    }
+    stroke(0);
+    strokeWeight(2);
+    line(centerX,centerY,city.getCenterX(),city.getCenterY());
+    //add to ds
+    neighbors.add(neighbor);
+    city.connectWith(new Neighbor(this,neighbor.getDistance()));
+  }
+
+  boolean isConnectedWith(City city) {
+    //TODO: finish this use ds
+    for(int i = 0; i < neighbors.size(); i++) {
+      Neighbor neighbor = neighbors.get(i);
+      if(neighbor.getCity().getLetter() == city.getLetter()){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  ArrayList<Neighbor> getNeighbors() {
+    return neighbors;
+  }
+
+  boolean equals(City city) {
+    if(city.getLetter() == this.letter){
+      return true;
+    }
+    return false;
+  }
+}
+
+class Neighbor {
+  private City city;
+  private double distance;
+
+  Neighbor(City city, double distance) {
+    this.city = city;
+    this.distance = distance;
+  }
+
+  double getDistance() {
+    return distance;
+  }
+
+  City getCity() {
+    return city;
+  }
+
+  void print() {
+    println(city.getLetter() + " distance: " + Double.toString(distance));
+  }
+}
+
+// Actual code
+//import java.util.Arrays;
+City[] cities;
+SearchAlgorithm algorithm;
+static final SearchAlgo algo = SearchAlgo.BREATHFS;
+
+enum SearchAlgo {
+    BREATHFS, DFS, BESTFS, ASTAR, IDS
+}
+
+// Number of columns and rows in the grid
+int mapSize = 100;
+int numLetters = 26;
+
+void setup() {
+  size(1500, 1500);
+  cities = new City[numLetters];
+
+  for (int i = 0; i < numLetters; i++) {
+    int rx = (int)random(mapSize);
+    int ry = (int)random(mapSize);
+    float suffix = width/mapSize;
+    char letter = 'A';
+    cities[i] = new City(rx*suffix, ry*suffix, suffix, suffix, Character.toString(((char)(letter + i))));
+  }
+
+  for(City city : cities) {
+    Neighbor[] closest = getClosestCitiesTo(city, 5);
+    knuthShuffle(closest);
+    int rand = (int)random(1,5);
+    for(int i = 0; i < rand; i++) {
+      city.connectWith(closest[i]);
+    }
+  }
+
+  for(City city : cities) {
+    // println("For city " + city.getLetter());
+    // for(Object neighbor : city.getNeighbors()) {
+    //   Neighbor n = neighbor;
+    //   n.print();
+    // }
+    city.display(255,255);
+  }
+  //TODO: choose start and end city/state
+  int startCity = (int)random(numLetters);
+  int endCity = (int)random(numLetters);
+  City startNode = cities[startCity];
+  City endNode = cities[endCity];
+
+  startNode.display(200,200);
+  endNode.display(200,200);
+  startNode.display(100,-1);
+  endNode.display(-1,100);
+  //TODO:setup search with start and goal
+
+  frameRate(1);
+  switch(algo) {
+    case BREATHFS:
+      algorithm = new BreadthFirstSearch(startNode, endNode);
+      break;
+    case DFS:
+      algorithm = new DepthFirstSearch(startNode, endNode);
+      break;
+  }
+}
+
+boolean stopSearch = false;
+void draw() {
+  //TODO: do search algorithms
+  if(!stopSearch) {
+    stopSearch = algorithm.compute();
+    algorithm.display();
+  }
+}
+
+Neighbor[] getClosestCitiesTo(City city, int howMany) {
+  double[] distances = new double[numLetters];
+  for(int i = 0; i < numLetters; i++) {
+    City c = cities[i];
+    double dist = getEucledianDistanceBetween(city,c);
+    distances[i] = dist;
+  }
+
+  int largest = distances.length - 1;
+  long mask = -1l;
+  while ((~mask & largest) != largest) mask <<= 1;
+  for (int i = 0; i < distances.length; ++i)
+    distances[i] = Double.longBitsToDouble(
+                    Double.doubleToLongBits(distances[i]) & mask | i);
+  Arrays.sort(distances);
+  
+  Neighbor[] closestCities = new Neighbor[howMany];
+  for(int i = 1; i <= howMany;i++) {
+    closestCities[i-1] = new Neighbor(cities[(int) (Double.doubleToLongBits(distances[i]) & ~mask)], distances[i]);
+  }
+  return closestCities;
+}
+
+double getEucledianDistanceBetween(City city1, City city2) {
+  float x2 = sq(city1.getCenterX() - city2.getCenterX());
+  float y2 = sq(city1.getCenterY() - city2.getCenterY());
+  return (double)sqrt(x2 + y2);
+}
+
+
+//import java.util.Random;
+public static final Random gen = new Random();
+public static void knuthShuffle (Object[] array) {
+    int n = array.length;
+    while (n > 1) {
+        int k = gen.nextInt(n--);
+        Object temp = array[n];
+        array[n] = array[k];
+        array[k] = temp;
+    }
+}
+
+
+//Search algos
+interface SearchAlgorithm {
+  boolean compute();
+  void display();
+}
+
+abstract class SearchClass implements SearchAlgorithm {
+  City startNode;
+  City goalNode;
+  ArrayList<City> visitedNodes;
+
+  SearchClass (City start, City goal) {
+    startNode = start;
+    goalNode = goal;
+    visitedNodes = new ArrayList<City>();
+    
+    // if(startNode.equals(goalNode)){
+    //     System.out.println("Goal Node Found at 0 depth");
+    //     System.out.println(startNode);
+    // }
+  }
+
+  void display() {
+    //println(visitedNodes);
+    for(City c : visitedNodes) {
+      c.display(100,100);
+    }
+  }
+}
+
+class BreadthFirstSearch extends SearchClass {
+    Queue<City> queue;
+
+    BreadthFirstSearch(City start, City goal){
+      super(start,goal);
+      queue = new LinkedList<City>();
+    }
+
+    boolean compute(){
+        queue.add(startNode);
+        visitedNodes.add(startNode);
+
+        if(!queue.isEmpty()){
+            City current = queue.remove();
+            if(current.equals(goalNode)) {
+              visitedNodes.add(current);
+              println("Goal Node Found!");
+              return true;
+            }
+            else{
+                ArrayList<Neighbor> neighbors = current.getNeighbors();
+                if(neighbors.isEmpty())
+                    return false;
+                else {
+                  for(Neighbor n : neighbors) {
+                    queue.add(n.getCity());
+                  }
+                }
+            }
+            visitedNodes.add(current);
+        }
+        else {
+          println(visitedNodes);
+          return true;
+        }
+        return false;
+    }
+}
+
+class DepthFirstSearch extends SearchClass {
+    Stack<City> nodeStack;
+    public DepthFirstSearch(City start, City goal){
+        super(start, goal);
+        nodeStack = new Stack<City>();
+    }
+
+    public boolean compute(){
+        nodeStack.add(startNode);
+        println(nodeStack);
+
+        if(!nodeStack.isEmpty()){
+            City current = nodeStack.pop();
+            if(current.equals(goalNode)){
+              visitedNodes.add(current);
+              System.out.println("Goal node found");
+              return true;
+            }
+            else {
+                visitedNodes.add(current);
+                ArrayList<Neighbor> neighbors = current.getNeighbors();
+                for(Neighbor n : neighbors) {
+                    nodeStack.add(n.getCity());
+                  }
+            }
+        }
+        else {
+          println(visitedNodes);
+          return true;
+        }
+        return false;
+    }
+
+}

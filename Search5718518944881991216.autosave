@@ -1,0 +1,38 @@
+interface SearchAlgorithm {
+  boolean compute();
+  void display();
+  LinkedList<Neighbor> getPath();
+}
+
+abstract class SearchClass implements SearchAlgorithm {
+  City startNode;
+  City goalNode;
+  ArrayList<City> visitedNodes;
+  LinkedList<Neighbor> path;
+
+  SearchClass (City start, City goal) {
+    startNode = start;
+    goalNode = goal;
+    visitedNodes = new ArrayList<City>();
+    path = new LinkedList<Neighbor>();
+  }
+
+  void display() {
+    for(City c : visitedNodes) {
+      c.display(100,100);
+      print(c.getLetter());
+    }
+    println("");
+  }
+
+  void getPathFrom(Neighbor n, List<Neighbor> q) {
+    while(n.getParent() != null) {
+      q.add(n);
+      n = 
+    }
+  }
+
+  LinkedList<Neighbor> getPath() {
+    return path;
+  }
+}
